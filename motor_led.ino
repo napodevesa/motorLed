@@ -1,59 +1,64 @@
 
 #include <pt.h>
+
 #include <Stepper.h>
 
+#define LED_1_PIN 7
 
-struct pt hilo1;
-
-const int stepsPerRevolution = 32*64;  
+const int stepsPerRevolution = 32*64;  // change this to fit the number of steps per revolution
 Stepper myStepper(stepsPerRevolution, 8, 10, 9, 11);
 
-void setup() 
+static struct pt pt1, pt2;
+
+
+static int protothreadBlinkLED1(struct pt *pt)
 {
+  static unsigned long lastTimeBlink = 0;
+  PT_BEGIN(pt);
+  while(1) {
+    lastTimeBlink = millis();
+    PT_WAIT_UNTIL(pt, millis() - lastTimeBlink > 1000);
+    digitalWrite(LED_1_PIN, HIGH);
+    lastTimeBlink = millis();
+    PT_WAIT_UNTIL(pt, millis() - lastTimeBlink > 1000);
+    digitalWrite(LED_1_PIN, LOW);
+  }
+  PT_END(pt);
+}
+
+static int protothreadMotor(struct pt *pt)
+{
+  static unsigned long lastTimeBlink = 0;
+  PT_BEGIN(pt);
+  while(1) {
+    lastTimeBlink = millis();
+    PT_WAIT_UNTIL(pt, millis() - lastTimeBlink > 1000);
+    myStepper.step(stepsPerRevolution);
+    lastTimeBlink = millis();
+    PT_WAIT_UNTIL(pt, millis() - lastTimeBlink > 1000);
+    myStepper.step(-stepsPerRevolution);
+  }
+  PT_END(pt);
+}
+
+
+
+void setup() {
   
-  PT_INIT(&hilo1);  
-  // set the speed at 15 rpm:
-  myStepper.setSpeed(15);
-  // initialize the serial port:
   Serial.begin(9600);
   
-}
-
-
-
-void loop() 
-{
-  parpadeo (&hilo1);
+  myStepper.setSpeed(10);
+  pinMode(LED_1_PIN, OUTPUT);
   
-  // step one revolution  in one direction:
-  Serial.println("clockwise");
-  myStepper.step(stepsPerRevolution);
-  delay(500);
-
-  // step one revolution in the other direction:
-  Serial.println("counterclockwise");
-  myStepper.step(-stepsPerRevolution);
-  delay(500);
-   
-}
-
-void parpadeo(struct pt *pt) {
-  PT_BEGIN(pt);
-  // void setup() {
-  static long t = 0;
-  pinMode(7, OUTPUT);
-  // }
   
-  do {
-  // void loop() {
-    digitalWrite(10, HIGH);
-    t = millis();
-    PT_WAIT_WHILE(pt, (millis()-t)<1000);
-    
-    digitalWrite(10, LOW);
-    t = millis();
-    PT_WAIT_UNTIL(pt, (millis()-t)>=1000);
-  // }
-  } while(true);
-  PT_END(pt);
+  PT_INIT(&pt1);
+  PT_INIT(&pt2);
+  
+  
+}
+void loop() {
+  
+ protothreadBlinkLED1(&pt1);
+ protothreadMotor(&pt2);
+ protothreadBlinkLED1(&pt1);
 }
